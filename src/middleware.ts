@@ -1,78 +1,58 @@
-import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 
-export function middleware(request: NextRequest) {
-  // Get the pathname of the request
+// Check if we're in a static export environment
+const isStaticExport = process.env.NEXT_EXPORT === 'true' || process.env.NODE_ENV === 'production';
+
+export async function middleware(request: NextRequest) {
+  // In static export mode, we need special handling
   const { pathname } = request.nextUrl;
 
-  // Check if the request is for an API route
-  if (pathname.startsWith('/api/')) {
-    // Handle authentication routes specially
-    if (pathname.startsWith('/api/auth/')) {
-      // If it's an error path, redirect to the auth page with error param
-      if (pathname.includes('/error')) {
-        // Extract error code if present in the URL
-        const url = new URL(request.url);
-        const errorCode = url.searchParams.get('error') || 'default';
-        const redirectUrl = new URL('/auth', request.url);
-        redirectUrl.searchParams.set('error', errorCode);
-        return NextResponse.redirect(redirectUrl);
-      }
-      
-      // Let session API calls continue but handle other auth paths
-      if (pathname === '/api/auth/session') {
-        return NextResponse.next();
-      }
-      
-      // For signin/signout in static exports, redirect to the auth page
-      if (pathname.includes('/signin') || pathname.includes('/signout') || pathname.includes('/callback')) {
-        return NextResponse.redirect(new URL('/auth', request.url));
-      }
-      
-      // For other auth API calls, let them pass through
+  // Skip middleware entirely in static export mode
+  if (isStaticExport) {
+    return NextResponse.next();
+  }
+
+  // Skip non-API routes
+  if (!pathname.startsWith('/api/')) {
+    return NextResponse.next();
+  }
+
+  // Special handling for auth routes
+  if (pathname.startsWith('/api/auth/')) {
+    // Handle specific auth paths
+    if (pathname.includes('/error')) {
+      // Redirect auth errors to the auth page with error parameter
+      const url = request.nextUrl.clone();
+      url.pathname = '/auth';
+      url.searchParams.set('error', 'default');
+      return NextResponse.redirect(url);
+    }
+
+    // Let session API calls pass through - they'll be handled by our useAuth hook
+    if (pathname.includes('/session')) {
       return NextResponse.next();
     }
 
-    // Check for guest mode flag
-    const isGuestCookie = request.cookies.get('isGuest')?.value;
-    const isGuestHeader = request.headers.get('x-guest-mode');
-    const isGuest = isGuestCookie === 'true' || isGuestHeader === 'true';
-
-    if (isGuest) {
-      // Return a special response indicating guest mode
-      return new NextResponse(
-        JSON.stringify({ 
-          message: 'Using guest mode. Data is saved locally only.',
-          isGuest: true
-        }),
-        { 
-          status: 200,
-          headers: { 'Content-Type': 'application/json' }
-        }
-      );
+    // Handle signin/signout redirects
+    if (pathname.includes('/signin') || pathname.includes('/signout')) {
+      const url = request.nextUrl.clone();
+      url.pathname = '/auth';
+      return NextResponse.redirect(url);
     }
-
-    // For static export, return a mock response for other API routes
-    return new NextResponse(
-      JSON.stringify({ 
-        message: 'API calls are not available in static exports. Please use the development server for API functionality.',
-        suggestGuestMode: true
-      }),
-      { 
-        status: 200,
-        headers: { 'Content-Type': 'application/json' }
-      }
-    );
+    
+    // For other auth API routes - we let them pass
+    return NextResponse.next();
   }
 
-  // Otherwise continue with the request
-  return NextResponse.next();
+  // Handle all other API routes (only in development, as we're returning early in static export)
+  // Default mock API response
+  return NextResponse.json({
+    message: "API calls are not available in static exports. Please use guest mode or run the development server for API functionality.",
+    success: false
+  });
 }
 
-// Run middleware on API routes and auth routes
+// Fixed matcher configuration without conditional expressions
 export const config = {
-  matcher: [
-    '/api/:path*',
-    '/api/auth/:path*'
-  ],
+  matcher: ['/api/:path*'],
 }; 

@@ -1,4 +1,4 @@
-export const dynamic = "force-static";
+export const dynamic = "error";
 
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
@@ -6,6 +6,16 @@ import { verifyAuth } from "@/lib/auth-helpers";
 
 export async function POST(request: Request) {
   try {
+    // For static export, return a mock session
+    if (process.env.NEXT_EXPORT === 'true') {
+      return NextResponse.json({
+        id: 'static-session-end',
+        userId: 'guest-user',
+        endTime: new Date().toISOString(),
+        duration: 25
+      });
+    }
+    
     // Verify authentication using our helper
     const auth = await verifyAuth();
     if (!auth.authenticated || !auth.userId) {

@@ -26,6 +26,26 @@
         "destination": "/auth"
       },
       {
+        "source": "/api/auth/providers",
+        "destination": "/api/auth/[...nextauth].html"
+      },
+      {
+        "source": "/api/auth/_log",
+        "destination": "/api/auth/[...nextauth].html"
+      },
+      {
+        "source": "/api/auth/session",
+        "destination": "/api/auth/[...nextauth].html"
+      },
+      {
+        "source": "/api/auth/csrf",
+        "destination": "/api/auth/[...nextauth].html"
+      },
+      {
+        "source": "/api/auth/credentials",
+        "destination": "/api/auth/[...nextauth].html"
+      },
+      {
         "source": "/api/auth/**",
         "destination": "/api/auth/[...nextauth].html"
       },

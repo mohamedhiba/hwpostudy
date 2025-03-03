@@ -1,4 +1,4 @@
-export const dynamic = "force-static";
+export const dynamic = "error";
 
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
@@ -15,6 +15,20 @@ export async function PATCH(
   { params }: { params: { taskId: string } }
 ) {
   try {
+    // For static export, return a mock updated task
+    if (process.env.NEXT_EXPORT === 'true') {
+      const { isCompleted } = await request.json();
+      return NextResponse.json({
+        id: params.taskId,
+        isCompleted,
+        title: 'Mock Task',
+        description: 'This is a mock task for static export',
+        userId: 'guest-user',
+        updatedAt: new Date().toISOString(),
+        completedAt: isCompleted ? new Date().toISOString() : null
+      });
+    }
+    
     // Verify authentication using our helper
     const auth = await verifyAuth();
     if (!auth.authenticated) {
@@ -29,34 +43,39 @@ export async function PATCH(
       return new NextResponse("Forbidden", { status: 403 });
     }
     
-    // Get the task
-    const existingTask = await prisma.task.findUnique({
+    // Find the task
+    const task = await prisma.task.findUnique({
       where: {
         id: taskId,
       },
     });
     
-    // Check if task exists and belongs to user
-    if (!existingTask || existingTask.userId !== userId) {
+    // Check if task exists
+    if (!task) {
       return new NextResponse("Task not found", { status: 404 });
     }
     
-    // Update the task
-    const updateData: { 
-      isCompleted: boolean; 
-      completedAt?: Date | null; 
-    } = {
-      isCompleted,
-    };
+    // Ensure the user owns the task
+    if (task.userId !== auth.userId) {
+      return new NextResponse("Forbidden", { status: 403 });
+    }
     
-    // If task is being marked as completed, add completion date and increment user's total tasks
-    if (isCompleted && !existingTask.isCompleted) {
-      updateData.completedAt = new Date();
-      
-      // Increment user's completed tasks count
+    // Update task completion status
+    const updatedTask = await prisma.task.update({
+      where: {
+        id: taskId,
+      },
+      data: {
+        isCompleted,
+        completedAt: isCompleted ? new Date() : null,
+      },
+    });
+    
+    // If task was just completed, update user's total tasks done count
+    if (isCompleted && !task.isCompleted) {
       await prisma.user.update({
         where: {
-          id: userId,
+          id: auth.userId,
         },
         data: {
           totalTasksDone: {
@@ -66,14 +85,11 @@ export async function PATCH(
       });
     }
     
-    // If task is being marked as incomplete, remove completion date and decrement user's total tasks
-    if (!isCompleted && existingTask.isCompleted) {
-      updateData.completedAt = null;
-      
-      // Decrement user's completed tasks count
+    // If task was just uncompleted, decrease user's total tasks done count
+    if (!isCompleted && task.isCompleted) {
       await prisma.user.update({
         where: {
-          id: userId,
+          id: auth.userId,
         },
         data: {
           totalTasksDone: {
@@ -83,14 +99,7 @@ export async function PATCH(
       });
     }
     
-    const task = await prisma.task.update({
-      where: {
-        id: taskId,
-      },
-      data: updateData,
-    });
-    
-    return NextResponse.json(task);
+    return NextResponse.json(updatedTask);
   } catch (error) {
     console.error("[TASK_UPDATE_ERROR]", error);
     return new NextResponse("Internal Error", { status: 500 });
@@ -103,6 +112,11 @@ export async function DELETE(
   { params }: { params: { taskId: string } }
 ) {
   try {
+    // For static export, return success
+    if (process.env.NEXT_EXPORT === 'true') {
+      return NextResponse.json({ deleted: true, id: params.taskId });
+    }
+    
     // Verify authentication using our helper
     const auth = await verifyAuth();
     if (!auth.authenticated) {
@@ -110,37 +124,22 @@ export async function DELETE(
     }
     
     const { taskId } = params;
-    const { userId } = await request.json();
     
-    // Ensure the user is modifying their own data
-    if (userId !== auth.userId) {
-      return new NextResponse("Forbidden", { status: 403 });
-    }
-    
-    // Get the task
-    const existingTask = await prisma.task.findUnique({
+    // Find the task
+    const task = await prisma.task.findUnique({
       where: {
         id: taskId,
       },
     });
     
-    // Check if task exists and belongs to user
-    if (!existingTask || existingTask.userId !== userId) {
+    // Check if task exists
+    if (!task) {
       return new NextResponse("Task not found", { status: 404 });
     }
     
-    // If task was completed, decrement user's total tasks
-    if (existingTask.isCompleted) {
-      await prisma.user.update({
-        where: {
-          id: userId,
-        },
-        data: {
-          totalTasksDone: {
-            decrement: 1,
-          }
-        }
-      });
+    // Ensure the user owns the task
+    if (task.userId !== auth.userId) {
+      return new NextResponse("Forbidden", { status: 403 });
     }
     
     // Delete the task
@@ -150,7 +149,21 @@ export async function DELETE(
       },
     });
     
-    return new NextResponse(null, { status: 204 });
+    // If task was completed, decrease user's total tasks done count
+    if (task.isCompleted) {
+      await prisma.user.update({
+        where: {
+          id: auth.userId,
+        },
+        data: {
+          totalTasksDone: {
+            decrement: 1,
+          }
+        }
+      });
+    }
+    
+    return NextResponse.json({ deleted: true });
   } catch (error) {
     console.error("[TASK_DELETE_ERROR]", error);
     return new NextResponse("Internal Error", { status: 500 });

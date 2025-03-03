@@ -1,4 +1,4 @@
-export const dynamic = "force-static";
+export const dynamic = "error";
 
 import { NextResponse } from "next/server";
 import bcrypt from "bcrypt";
@@ -6,6 +6,14 @@ import prisma from "@/lib/prisma";
 
 export async function POST(request: Request) {
   try {
+    // For static export, return a mock success response
+    if (process.env.NEXT_EXPORT === 'true') {
+      return NextResponse.json({ 
+        success: true, 
+        message: "User registration simulated in static export mode. Please use the guest login option."
+      });
+    }
+    
     const body = await request.json();
     const { email, name, password } = body;
 
@@ -21,29 +29,29 @@ export async function POST(request: Request) {
     });
 
     if (existingUser) {
-      return new NextResponse("Email already exists", { status: 409 });
+      return new NextResponse("Email already in use", { status: 400 });
     }
 
     // Hash the password
     const hashedPassword = await bcrypt.hash(password, 12);
 
-    // Create new user
+    // Create the user
     const user = await prisma.user.create({
       data: {
         email,
         name,
-        password: hashedPassword
+        password: hashedPassword,
+        totalStudyTime: 0,
+        totalTasksDone: 0
       }
     });
 
     // Remove password from response
-    // Using _password variable name to explicitly indicate we're ignoring it
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { password: _password, ...userWithoutPassword } = user;
+    const { password: _, ...userWithoutPassword } = user;
 
     return NextResponse.json(userWithoutPassword);
   } catch (error) {
-    console.log(error);
+    console.error("[REGISTER_ERROR]", error);
     return new NextResponse("Internal Error", { status: 500 });
   }
 } 

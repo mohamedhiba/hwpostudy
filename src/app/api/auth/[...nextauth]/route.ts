@@ -9,7 +9,21 @@ import bcrypt from "bcrypt";
 
 // Required for static generation with dynamic routes
 export function generateStaticParams() {
-  return [{ nextauth: ['signin', 'signout', 'callback', 'session', 'error', 'csrf'] }];
+  return [
+    { nextauth: ['signin'] },
+    { nextauth: ['signout'] },  
+    { nextauth: ['callback'] },
+    { nextauth: ['session'] },
+    { nextauth: ['error'] },
+    { nextauth: ['csrf'] },
+    { nextauth: ['providers'] },
+    { nextauth: ['_log'] },
+    { nextauth: ['credentials'] },
+    { nextauth: ['error', 'default'] },
+    { nextauth: ['session', 'set'] },
+    { nextauth: ['session', 'get'] },
+    { nextauth: ['callback', 'credentials'] }
+  ];
 }
 
 export const authOptions = {

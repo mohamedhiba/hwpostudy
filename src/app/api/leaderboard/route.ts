@@ -1,11 +1,24 @@
-export const dynamic = "force-static";
+export const dynamic = "error";
 
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { verifyAuth } from "@/lib/auth-helpers";
 
+// Mock data for static export
+const STATIC_LEADERBOARD = [
+  { id: 'user1', name: 'Alex', totalTime: 12600, totalStudyTime: 210, totalTasksDone: 15, isFriend: false },
+  { id: 'user2', name: 'Jamie', totalTime: 10800, totalStudyTime: 180, totalTasksDone: 12, isFriend: true },
+  { id: 'user3', name: 'Sam', totalTime: 9000, totalStudyTime: 150, totalTasksDone: 10, isFriend: false },
+  { id: 'guest-user', name: 'You (Guest)', totalTime: 3600, totalStudyTime: 60, totalTasksDone: 5, isFriend: false }
+];
+
 export async function GET(request: Request) {
   try {
+    // For static export, return mock data
+    if (process.env.NEXT_EXPORT === 'true') {
+      return NextResponse.json(STATIC_LEADERBOARD);
+    }
+    
     // Verify authentication using our helper
     const auth = await verifyAuth();
     if (!auth.authenticated) {
