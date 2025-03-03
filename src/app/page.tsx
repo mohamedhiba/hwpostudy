@@ -1,3 +1,5 @@
+export const dynamic = 'force-static';
+
 import PomodoroTimer from "@/components/PomodoroTimer";
 import Leaderboard from "@/components/Leaderboard";
 import Navigation from "@/components/Navigation";
