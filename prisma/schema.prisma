@@ -1,0 +1,117 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// User model for authentication and profile information
+model User {
+  id              String         @id @default(uuid())
+  name            String
+  email           String         @unique
+  password        String
+  image           String?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  totalStudyTime  Int            @default(0) // in minutes
+  totalTasksDone  Int            @default(0)
+  
+  // Relations
+  sessions        StudySession[]
+  tasks           Task[]
+  sentFriendReqs  Friendship[]   @relation("Requester")
+  recvFriendReqs  Friendship[]   @relation("Addressee")
+  createdSharedSessions SharedSession[]
+  sharedSessionParticipations SharedSessionParticipant[]
+}
+
+// StudySession model to track study sessions
+model StudySession {
+  id        String   @id @default(uuid())
+  userId    String
+  startTime DateTime @default(now())
+  endTime   DateTime?
+  duration  Int?     // in minutes, calculated when session ends
+  mode      String?  @default("focus") // The timer mode (focus, shortBreak, longBreak)
+  
+  // Relations
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// Task model for tracking todos/tasks
+model Task {
+  id          String   @id @default(uuid())
+  userId      String
+  title       String
+  description String?
+  isCompleted Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  completedAt DateTime?
+  
+  // Relations
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// Friendship model for social connections
+model Friendship {
+  id           String        @id @default(uuid())
+  requesterId  String
+  addresseeId  String
+  status       FriendStatus  @default(PENDING)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  
+  // Relations
+  requester    User          @relation("Requester", fields: [requesterId], references: [id], onDelete: Cascade)
+  addressee    User          @relation("Addressee", fields: [addresseeId], references: [id], onDelete: Cascade)
+  
+  @@unique([requesterId, addresseeId])
+}
+
+// SharedSession model for collaborative study sessions
+model SharedSession {
+  id              String    @id @default(uuid())
+  name            String
+  creatorId       String
+  timerMode       String    @default("focus") // focus, shortBreak, longBreak
+  duration        Int       @default(1500)    // default 25 minutes in seconds
+  startTime       DateTime?
+  endTime         DateTime?
+  isActive        Boolean   @default(true)
+  inviteCode      String    @unique
+  createdAt       DateTime  @default(now())
+  
+  // Relations
+  creator         User      @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  participants    SharedSessionParticipant[]
+}
+
+// Model to track participants in a shared session
+model SharedSessionParticipant {
+  id              String    @id @default(uuid())
+  sessionId       String
+  userId          String
+  joinedAt        DateTime  @default(now())
+  
+  // Relations
+  session         SharedSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([sessionId, userId])
+}
+
+// Enum for friendship status
+enum FriendStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+}
