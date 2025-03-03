@@ -1,3 +1,5 @@
+export const dynamic = "force-static";
+
 import { NextResponse } from "next/server";
 import bcrypt from "bcrypt";
 import prisma from "@/lib/prisma";

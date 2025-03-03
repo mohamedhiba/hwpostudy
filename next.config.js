@@ -16,12 +16,9 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
-  // Configure redirects and rewrites for SPA behavior
-  async redirects() {
-    return [];
-  },
-  async rewrites() {
-    return [];
+  // Configure static export exclusions
+  outputFileTracingExcludes: {
+    '*': ['./api/**/*']
   }
 };
 

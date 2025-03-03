@@ -4,10 +4,10 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
-    "build": "next build",
+    "build": "next build && touch out/.nojekyll",
     "start": "next start",
     "lint": "next lint",
-    "export": "next build",
+    "export": "next build && touch out/.nojekyll",
     "deploy": "firebase deploy --only hosting",
     "build:deploy": "npm run export && npm run deploy"
   },

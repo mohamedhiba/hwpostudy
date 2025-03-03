@@ -1,8 +1,16 @@
+export const dynamic = "force-static";
+
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import NextAuth from "next-auth/next";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { compare } from "bcrypt";
 import prisma from "@/lib/prisma";
+import bcrypt from "bcrypt";
+
+// Required for static generation with dynamic routes
+export function generateStaticParams() {
+  return [{ nextauth: ['signin', 'signout', 'callback', 'session'] }];
+}
 
 export const authOptions = {
   adapter: PrismaAdapter(prisma) as any,

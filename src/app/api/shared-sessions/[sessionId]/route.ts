@@ -1,6 +1,13 @@
+export const dynamic = "force-static";
+
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { verifyAuth } from "@/lib/auth-helpers";
+
+// Required for static generation with dynamic routes
+export function generateStaticParams() {
+  return [{ sessionId: 'placeholder' }];
+}
 
 // Get a specific shared session
 export async function GET(
