@@ -175,7 +175,7 @@ export async function DELETE(
       return auth.response || NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const sessionId = params.sessionId;
+    const { sessionId } = params;
     const sharedSession = await prisma.sharedSession.findUnique({
       where: { id: sessionId },
       include: {
