@@ -7,7 +7,7 @@ const nextConfig = {
   typescript: {
     // Disable TypeScript errors during production builds
     ignoreBuildErrors: true,
-  },
+  }
 };
 
 module.exports = nextConfig; 

@@ -6,7 +6,10 @@
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "export": "next build",
+    "deploy": "firebase deploy --only hosting",
+    "build:deploy": "npm run export && npm run deploy"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.8.0",

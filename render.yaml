@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: studytogether
+    env: node
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    healthCheckPath: /
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # Database URL will be set on Render dashboard
+      - key: DATABASE_URL
+        sync: false
+      - key: NEXTAUTH_SECRET
+        generateValue: true
+      - key: NEXTAUTH_URL
+        fromService:
+          name: studytogether
+          type: web
+          envVarKey: RENDER_EXTERNAL_URL
+    autoDeploy: true 
