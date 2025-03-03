@@ -10,19 +10,39 @@
     "trailingSlash": false,
     "rewrites": [
       {
-        "source": "/api/auth/error**",
+        "source": "/api/auth/error",
         "destination": "/auth?error=default"
       },
       {
-        "source": "/api/auth/signin**",
+        "source": "/api/auth/error/**",
+        "destination": "/auth?error=default"
+      },
+      {
+        "source": "/api/auth/error*",
+        "destination": "/auth?error=default"
+      },
+      {
+        "source": "/api/auth/signin",
         "destination": "/auth"
       },
       {
-        "source": "/api/auth/signout**",
+        "source": "/api/auth/signin/**",
         "destination": "/auth"
       },
       {
-        "source": "/api/auth/callback**",
+        "source": "/api/auth/signout",
+        "destination": "/auth"
+      },
+      {
+        "source": "/api/auth/signout/**",
+        "destination": "/auth"
+      },
+      {
+        "source": "/api/auth/callback",
+        "destination": "/auth"
+      },
+      {
+        "source": "/api/auth/callback/**",
         "destination": "/auth"
       },
       {
