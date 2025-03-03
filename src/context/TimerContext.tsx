@@ -1,19 +1,17 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
-import { useSession } from 'next-auth/react';
-import type { Session } from 'next-auth';
+import { useAuth, GuestUser, NextAuthUser } from '@/hooks/useAuth';
 
-// Define a typed session to use in our component
-interface ExtendedSession extends Session {
-  user: {
-    id: string;
-    name?: string | null;
-    email?: string | null;
-    image?: string | null;
-    totalStudyTime: number;
-    totalTasksDone: number;
-  }
+// Update the user interface to support both NextAuth and guest users
+interface ExtendedUser {
+  id: string;
+  name?: string | null;
+  email?: string | null;
+  image?: string | null;
+  totalStudyTime?: number;
+  totalTasksDone?: number;
+  isGuest?: boolean;
 }
 
 export type TimerState = 'idle' | 'running' | 'paused' | 'completed';
@@ -92,11 +90,8 @@ interface TimerContextType {
 const TimerContext = createContext<TimerContextType | undefined>(undefined);
 
 export function TimerProvider({ children }: { children: ReactNode }) {
-  // Use type assertion for the session
-  const { data: session, status } = useSession() as { 
-    data: ExtendedSession | null;
-    status: "loading" | "authenticated" | "unauthenticated";
-  };
+  // Use our custom auth hook
+  const { user, isAuthenticated, isGuest, status } = useAuth();
   
   const [mode, setMode] = useState<TimerMode>('focus');
   const [state, setState] = useState<TimerState>('idle');
@@ -130,7 +125,7 @@ export function TimerProvider({ children }: { children: ReactNode }) {
   // Define all functions first using useCallback
   // Start a new session (API call)
   const startSession = useCallback(async () => {
-    if (!session?.user.id) {
+    if (!isAuthenticated || !user?.id) {
       console.error('Cannot start session - User not authenticated');
       return; // Only proceed if authenticated
     }
@@ -156,11 +151,11 @@ export function TimerProvider({ children }: { children: ReactNode }) {
       console.error('Error starting session:', error);
       alert('Error starting session. Check console for details.');
     }
-  }, [mode, session?.user.id]);
+  }, [mode, user?.id, isAuthenticated]);
   
   // Save current progress without ending session
   const saveProgress = useCallback(async () => {
-    if (!session?.user.id) {
+    if (!isAuthenticated || !user?.id) {
       console.error('Cannot save progress - User not authenticated');
       return;
     }
@@ -193,11 +188,11 @@ export function TimerProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       console.error('Error saving progress:', error);
     }
-  }, [mode, sessionId, session?.user.id, timeRemaining, elapsedTime]);
+  }, [mode, sessionId, user?.id, timeRemaining, elapsedTime, isAuthenticated]);
   
   // End the current session (API call)
   const endSession = useCallback(async () => {
-    if (!sessionId || !session?.user.id) return;
+    if (!sessionId || !isAuthenticated || !user?.id) return;
     
     try {
       // Calculate time spent in minutes
@@ -229,12 +224,12 @@ export function TimerProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       console.error('Error ending session:', error);
     }
-  }, [mode, sessionId, session?.user.id, timeRemaining]);
+  }, [mode, sessionId, user?.id, timeRemaining, isAuthenticated]);
 
   // Define other functions (with useCallback if they depend on state variables)
   // Create a new shared session
   const createSharedSession = useCallback(async (name: string) => {
-    if (!session?.user.id) return;
+    if (!isAuthenticated || !user?.id) return;
     
     try {
       const response = await fetch('/api/shared-sessions', {
@@ -257,11 +252,11 @@ export function TimerProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       console.error('Error creating shared session:', error);
     }
-  }, [mode, session?.user.id]);
+  }, [mode, user?.id, isAuthenticated]);
   
   // Join an existing shared session
   const joinSharedSession = useCallback(async (inviteCode: string) => {
-    if (!session?.user.id) return;
+    if (!isAuthenticated || !user?.id) return;
     
     try {
       const response = await fetch('/api/shared-sessions/join', {
@@ -284,7 +279,7 @@ export function TimerProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       console.error('Error joining shared session:', error);
     }
-  }, [session?.user.id]);
+  }, [user?.id, isAuthenticated]);
   
   // Leave a shared session
   const leaveSharedSession = useCallback(() => {

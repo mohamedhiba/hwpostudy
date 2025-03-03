@@ -1,30 +1,21 @@
 'use client';
 
 import { useState, useEffect, Fragment } from 'react';
-import { useSession, signIn } from 'next-auth/react';
 import { FiPlay, FiPause, FiRefreshCw, FiClock, FiCheckCircle, FiSave, FiUsers, FiLink, FiArrowRight, FiCheck, FiSettings, FiX } from 'react-icons/fi';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useTimer, TIMER_MODES, TimerMode } from '@/context/TimerContext';
-import type { Session } from 'next-auth';
+import { useAuth, GuestUser, NextAuthUser } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 
-// Define a typed session to use in our component
-interface ExtendedSession extends Session {
-  user: {
-    id: string;
-    name?: string | null;
-    email?: string | null;
-    image?: string | null;
-    totalStudyTime: number;
-    totalTasksDone: number;
-  }
-}
-
 export default function PomodoroTimer() {
-  // Use type assertion for the session
-  const { data: session, status } = useSession() as { 
-    data: ExtendedSession | null;
-    status: "loading" | "authenticated" | "unauthenticated";
+  // Use our custom auth hook instead of useSession
+  const { user, status, isAuthenticated, isGuest } = useAuth();
+  const router = useRouter();
+  
+  // Function to navigate to auth page
+  const navigateToAuth = () => {
+    router.push('/auth');
   };
   
   // Use the timer context
@@ -48,7 +39,8 @@ export default function PomodoroTimer() {
     elapsedTime,
     completedSessions,
     durations,
-    updateDuration
+    updateDuration,
+    endSession
   } = useTimer();
   
   // UI state for shared sessions
@@ -143,18 +135,18 @@ export default function PomodoroTimer() {
       <div className="text-center p-8 bg-white dark:bg-gray-800 rounded-lg shadow-md">
         <h3 className="text-xl font-semibold mb-2">Sign in to use the Pomodoro Timer</h3>
         <p className="mb-4">Track your study sessions and earn points for consistency.</p>
-        <Button onClick={() => signIn()}>Sign In</Button>
+        <Button onClick={navigateToAuth}>Sign In</Button>
       </div>
     );
   }
 
   return (
     <div className="w-full flex flex-col items-center">
-      {!session?.user ? (
+      {!user ? (
         <div className="text-center p-8 bg-white dark:bg-gray-800 rounded-lg shadow-md">
           <h3 className="text-xl font-semibold mb-2">Sign in to use the Pomodoro Timer</h3>
           <p className="mb-4">Track your study sessions and earn points for consistency.</p>
-          <Button onClick={() => signIn()}>Sign In</Button>
+          <Button onClick={navigateToAuth}>Sign In</Button>
         </div>
       ) : (
         <Fragment>

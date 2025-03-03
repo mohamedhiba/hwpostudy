@@ -22,6 +22,38 @@ export default function AuthPage() {
     setError(null);
   };
   
+  // Function to handle guest sign-in without API calls
+  const handleGuestSignIn = () => {
+    setIsLoading(true);
+    
+    try {
+      // Generate a unique guest ID
+      const guestId = 'guest-' + Math.random().toString(36).substring(2, 15);
+      
+      // Store guest user data in localStorage for client-side only auth
+      const guestUser = {
+        id: guestId,
+        name: 'Guest User',
+        email: 'guest@example.com',
+        isGuest: true,
+        totalStudyTime: 0,
+        totalTasksDone: 0
+      };
+      
+      localStorage.setItem('guestUser', JSON.stringify(guestUser));
+      
+      // Set a cookie to indicate guest mode for middleware
+      document.cookie = 'isGuest=true; path=/; max-age=86400'; // 24 hours
+      
+      // Redirect to home page
+      router.push('/');
+    } catch (error) {
+      console.error('Error setting up guest mode:', error);
+      setError('Failed to set up guest mode. Please try again.');
+      setIsLoading(false);
+    }
+  };
+  
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -225,12 +257,13 @@ export default function AuthPage() {
           </div>
           
           <div className="mt-6">
-            <Link
-              href="/"
+            <button
+              type="button"
+              onClick={handleGuestSignIn}
               className="w-full inline-flex justify-center py-2 px-4 border border-gray-600 rounded-md shadow-sm bg-gray-700 text-sm font-medium text-gray-300 hover:bg-gray-600 transition-colors"
             >
               Continue as guest
-            </Link>
+            </button>
           </div>
         </div>
       </div>

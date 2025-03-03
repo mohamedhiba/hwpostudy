@@ -2,29 +2,24 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useSession, signOut } from 'next-auth/react';
 import { FiClock, FiCheckSquare, FiAward, FiUser, FiLogOut, FiLogIn, FiMoon } from 'react-icons/fi';
-import type { Session } from 'next-auth';
+import { useAuth } from '@/hooks/useAuth';
 
-// Define a typed session to use in our component
-interface ExtendedSession extends Session {
-  user: {
-    id: string;
-    name?: string | null;
-    email?: string | null;
-    image?: string | null;
-    totalStudyTime: number;
-    totalTasksDone: number;
-  }
+// Define a typed user interface
+interface ExtendedUser {
+  id: string;
+  name?: string | null;
+  email?: string | null;
+  image?: string | null;
+  totalStudyTime?: number;
+  totalTasksDone?: number;
+  isGuest?: boolean;
 }
 
 export default function Navigation() {
   const pathname = usePathname();
-  // Use type assertion for the session
-  const { data: session, status } = useSession() as { 
-    data: ExtendedSession | null;
-    status: "loading" | "authenticated" | "unauthenticated";
-  };
+  // Use our custom auth hook
+  const { user, status, isAuthenticated, isGuest, signOut } = useAuth();
   
   const isActive = (path: string) => pathname === path;
   
@@ -83,14 +78,14 @@ export default function Navigation() {
           </div>
           
           <div className="flex items-center">
-            {status === 'authenticated' ? (
+            {isAuthenticated ? (
               <div className="flex items-center gap-4">
                 <span className="text-sm text-gray-300 hidden md:inline">
-                  {session?.user?.name}
+                  {user?.name} {isGuest && "(Guest)"}
                 </span>
                 
                 <button
-                  onClick={() => signOut({ callbackUrl: '/' })}
+                  onClick={() => signOut()}
                   className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-gray-300 bg-gray-700 hover:bg-gray-600"
                 >
                   <FiLogOut className="mr-1" />

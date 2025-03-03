@@ -1,9 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useSession } from 'next-auth/react';
 import { FiPlus, FiCheck, FiX, FiCalendar, FiTrash2 } from 'react-icons/fi';
-import type { Session } from 'next-auth';
+import { useAuth, GuestUser, NextAuthUser } from '@/hooks/useAuth';
+import { v4 as uuidv4 } from 'uuid';
 
 interface Task {
   id: string;
@@ -14,83 +14,111 @@ interface Task {
   completedAt?: string;
 }
 
-// Define a typed session to use in our component
-interface ExtendedSession extends Session {
-  user: {
-    id: string;
-    name?: string | null;
-    email?: string | null;
-    image?: string | null;
-    totalStudyTime: number;
-    totalTasksDone: number;
-  }
-}
-
 export default function TaskManager() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [newTask, setNewTask] = useState('');
   const [newDescription, setNewDescription] = useState('');
   const [isLoading, setIsLoading] = useState(true);
-  // Use type assertion for the session
-  const { data: session, status } = useSession() as { 
-    data: ExtendedSession | null;
-    status: "loading" | "authenticated" | "unauthenticated";
-  };
+  const { user, status, isAuthenticated, isGuest } = useAuth();
 
   // Load tasks when component mounts
   useEffect(() => {
     const fetchTasks = async () => {
-      if (!session?.user?.id) return;
+      if (!user?.id) return;
       
       try {
         setIsLoading(true);
-        const response = await fetch(`/api/tasks?userId=${session.user.id}`);
+        
+        // For guest users, load from localStorage
+        if (isGuest) {
+          const storedTasks = localStorage.getItem('guestTasks');
+          if (storedTasks) {
+            setTasks(JSON.parse(storedTasks));
+          } else {
+            setTasks([]);
+          }
+          setIsLoading(false);
+          return;
+        }
+        
+        // For authenticated users, fetch from API
+        const response = await fetch(`/api/tasks?userId=${user.id}`);
         
         if (response.ok) {
           const data = await response.json();
           setTasks(data);
+        } else {
+          console.error('Failed to fetch tasks:', await response.text());
+          setTasks([]);
         }
       } catch (error) {
-        console.error('Failed to fetch tasks:', error);
+        console.error('Error fetching tasks:', error);
+        setTasks([]);
       } finally {
         setIsLoading(false);
       }
     };
-    
-    fetchTasks();
-  }, [session?.user?.id]);
+
+    if (status !== 'loading') {
+      fetchTasks();
+    }
+  }, [user?.id, status, isGuest]);
 
   // Add a new task
   const addTask = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!newTask.trim() || !session?.user?.id) return;
+    if (!newTask.trim() || !user?.id) return;
     
     try {
+      // Create task object
+      const newTaskObj: Task = {
+        id: isGuest ? uuidv4() : '', // Generate UUID for guest users
+        title: newTask,
+        description: newDescription || undefined,
+        isCompleted: false,
+        createdAt: new Date().toISOString(),
+      };
+      
+      // Handle guest users with localStorage
+      if (isGuest) {
+        const updatedTasks = [...tasks, newTaskObj];
+        setTasks(updatedTasks);
+        localStorage.setItem('guestTasks', JSON.stringify(updatedTasks));
+        
+        // Reset form
+        setNewTask('');
+        setNewDescription('');
+        return;
+      }
+      
+      // For authenticated users, use API
       const response = await fetch('/api/tasks', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          userId: session.user.id,
+          userId: user.id,
           title: newTask,
           description: newDescription || undefined,
         }),
       });
       
       if (response.ok) {
-        const newTask = await response.json();
-        setTasks(prev => [...prev, newTask]);
+        const createdTask = await response.json();
+        setTasks(prev => [...prev, createdTask]);
         setNewTask('');
         setNewDescription('');
+      } else {
+        console.error('Failed to add task:', await response.text());
       }
     } catch (error) {
-      console.error('Failed to add task:', error);
+      console.error('Error adding task:', error);
     }
   };
 
   // Toggle task completion status
   const toggleTaskCompletion = async (taskId: string) => {
-    if (!session?.user.id) return;
+    if (!user?.id) return;
     
     const taskIndex = tasks.findIndex(task => task.id === taskId);
     if (taskIndex === -1) return;
@@ -99,42 +127,82 @@ export default function TaskManager() {
     const newStatus = !task.isCompleted;
     
     try {
+      // Create updated task object
+      const updatedTask = {
+        ...task,
+        isCompleted: newStatus,
+        completedAt: newStatus ? new Date().toISOString() : undefined,
+      };
+      
+      // Update local state first for better UX
+      const updatedTasks = [
+        ...tasks.slice(0, taskIndex),
+        updatedTask,
+        ...tasks.slice(taskIndex + 1)
+      ];
+      setTasks(updatedTasks);
+      
+      // Handle guest users with localStorage
+      if (isGuest) {
+        localStorage.setItem('guestTasks', JSON.stringify(updatedTasks));
+        return;
+      }
+      
+      // For authenticated users, use API
       const response = await fetch(`/api/tasks/${taskId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           isCompleted: newStatus,
-          userId: session.user.id,
+          userId: user.id,
         }),
       });
       
-      if (response.ok) {
-        const updatedTask = await response.json();
-        setTasks(prev => 
-          prev.map(t => t.id === taskId ? updatedTask : t)
-        );
+      if (!response.ok) {
+        console.error('Failed to update task:', await response.text());
+        // Revert on failure
+        setTasks(tasks);
       }
     } catch (error) {
-      console.error('Failed to update task:', error);
+      console.error('Error updating task:', error);
+      // Revert on error
+      setTasks(tasks);
     }
   };
 
   // Delete a task
   const deleteTask = async (taskId: string) => {
-    if (!session?.user?.id || !window.confirm('Are you sure you want to delete this task?')) return;
+    if (!user?.id || !window.confirm('Are you sure you want to delete this task?')) return;
     
     try {
+      // Update local state first for better UX
+      const updatedTasks = tasks.filter(task => task.id !== taskId);
+      setTasks(updatedTasks);
+      
+      // Handle guest users with localStorage
+      if (isGuest) {
+        localStorage.setItem('guestTasks', JSON.stringify(updatedTasks));
+        return;
+      }
+      
+      // For authenticated users, use API
       const response = await fetch(`/api/tasks/${taskId}`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: session.user.id }),
+        body: JSON.stringify({ userId: user.id }),
       });
       
-      if (response.ok) {
-        setTasks(prev => prev.filter(task => task.id !== taskId));
+      if (!response.ok) {
+        console.error('Failed to delete task:', await response.text());
+        // Revert on failure
+        const originalTasks = tasks;
+        setTasks(originalTasks);
       }
     } catch (error) {
-      console.error('Failed to delete task:', error);
+      console.error('Error deleting task:', error);
+      // Revert on error
+      const originalTasks = tasks;
+      setTasks(originalTasks);
     }
   };
 

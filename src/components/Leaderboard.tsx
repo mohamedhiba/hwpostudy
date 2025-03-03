@@ -1,11 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useSession } from 'next-auth/react';
 import { FiClock, FiCheckSquare, FiAward, FiUserCheck } from 'react-icons/fi';
 import Link from 'next/link';
-// Explicitly import the types from next-auth
-import type { Session } from 'next-auth';
+import { useAuth, GuestUser, NextAuthUser } from '@/hooks/useAuth';
 
 interface LeaderboardUser {
   id: string;
@@ -16,57 +14,92 @@ interface LeaderboardUser {
   isFriend: boolean;
 }
 
-// Define a typed session to use in our component
-interface ExtendedSession extends Session {
-  user: {
-    id: string;
-    name?: string | null;
-    email?: string | null;
-    image?: string | null;
-    totalStudyTime: number;
-    totalTasksDone: number;
-  }
-}
-
 export default function Leaderboard() {
-  // Use type assertion for the session
-  const { data: session, status } = useSession() as { 
-    data: ExtendedSession | null;
-    status: "loading" | "authenticated" | "unauthenticated";
-  };
+  const { user: currentUser, status, isAuthenticated, isGuest } = useAuth();
   const [users, setUsers] = useState<LeaderboardUser[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [leaderboardType, setLeaderboardType] = useState<'studyTime' | 'tasksDone'>('studyTime');
   const [leaderboardScope, setLeaderboardScope] = useState<'global' | 'friends'>('global');
 
-  // Load leaderboard data
   useEffect(() => {
     const fetchLeaderboard = async () => {
-      if (status !== 'authenticated' || !session?.user?.id) {
+      if (!isAuthenticated || !currentUser?.id) {
         return;
       }
       
       try {
         setIsLoading(true);
+        
+        if (isGuest) {
+          const mockUsers: LeaderboardUser[] = [
+            {
+              id: 'user-1',
+              name: 'Alex Studious',
+              totalStudyTime: 1240,
+              totalTasksDone: 42,
+              isFriend: false
+            },
+            {
+              id: 'user-2',
+              name: 'Sam Productive',
+              totalStudyTime: 980,
+              totalTasksDone: 37,
+              isFriend: false
+            },
+            {
+              id: currentUser.id,
+              name: currentUser.name || 'Guest User',
+              totalStudyTime: currentUser.totalStudyTime || 0,
+              totalTasksDone: currentUser.totalTasksDone || 0,
+              isFriend: false
+            },
+            {
+              id: 'user-3',
+              name: 'Jamie Learner',
+              totalStudyTime: 760,
+              totalTasksDone: 29,
+              isFriend: false
+            },
+            {
+              id: 'user-4',
+              name: 'Taylor Focus',
+              totalStudyTime: 620,
+              totalTasksDone: 24,
+              isFriend: false
+            }
+          ];
+          
+          mockUsers.sort((a, b) => 
+            leaderboardType === 'studyTime' 
+              ? b.totalStudyTime - a.totalStudyTime 
+              : b.totalTasksDone - a.totalTasksDone
+          );
+          
+          setUsers(mockUsers);
+          setIsLoading(false);
+          return;
+        }
+        
         const response = await fetch(
-          `/api/leaderboard?type=${leaderboardType}&scope=${leaderboardScope}&userId=${session.user.id}`
+          `/api/leaderboard?type=${leaderboardType}&scope=${leaderboardScope}&userId=${currentUser.id}`
         );
         
         if (response.ok) {
           const data = await response.json();
           setUsers(data);
+        } else {
+          console.error('Failed to load leaderboard:', await response.text());
         }
       } catch (error) {
-        console.error('Failed to fetch leaderboard:', error);
+        console.error('Error loading leaderboard:', error);
       } finally {
         setIsLoading(false);
       }
     };
-    
-    fetchLeaderboard();
-  }, [status, session?.user?.id, leaderboardType, leaderboardScope]);
 
-  // Format time in hours and minutes
+    fetchLeaderboard();
+  }, [leaderboardType, leaderboardScope, currentUser?.id, isAuthenticated, isGuest]);
+
   const formatStudyTime = (minutes: number) => {
     const hours = Math.floor(minutes / 60);
     const mins = minutes % 60;
@@ -76,7 +109,6 @@ export default function Leaderboard() {
     return `${hours}h ${mins}m`;
   };
 
-  // Get user rank and highlight styles
   const getUserRankStyles = (index: number) => {
     const rankStyles = {
       medal: '',
@@ -190,8 +222,8 @@ export default function Leaderboard() {
                 <div className="flex-grow">
                   <h3 className={`font-medium ${styles.text}`}>
                     {user.name}
-                    {session?.user?.id === user.id && ' (You)'}
-                    {user.isFriend && session?.user?.id !== user.id && ' (Friend)'}
+                    {user.id === currentUser?.id && ' (You)'}
+                    {user.isFriend && user.id !== currentUser?.id && ' (Friend)'}
                   </h3>
                 </div>
                 
