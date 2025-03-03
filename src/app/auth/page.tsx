@@ -1,13 +1,15 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { signIn } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { FiUser, FiMail, FiLock, FiLogIn, FiUserPlus } from 'react-icons/fi';
 
-export default function AuthPage() {
+// Create a separate component for the auth form to handle search params
+function AuthForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [authType, setAuthType] = useState<'login' | 'register'>('login');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -16,6 +18,26 @@ export default function AuthPage() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  
+  // Check for error params from NextAuth
+  useEffect(() => {
+    const errorParam = searchParams.get('error');
+    if (errorParam) {
+      switch (errorParam) {
+        case 'CredentialsSignin':
+          setError('Invalid email or password');
+          break;
+        case 'Callback':
+          setError('Authentication failed');
+          break;
+        case 'OAuthAccountNotLinked':
+          setError('Email already used with a different provider');
+          break;
+        default:
+          setError('An error occurred during authentication');
+      }
+    }
+  }, [searchParams]);
   
   const toggleAuthType = () => {
     setAuthType(prev => prev === 'login' ? 'register' : 'login');
@@ -250,23 +272,34 @@ export default function AuthPage() {
               <div className="w-full border-t border-gray-700"></div>
             </div>
             <div className="relative flex justify-center text-sm">
-              <span className="px-2 bg-gray-800 text-gray-400">
-                Or continue with
-              </span>
+              <span className="px-2 bg-gray-800 text-gray-400">Or continue with</span>
             </div>
           </div>
           
           <div className="mt-6">
             <button
-              type="button"
               onClick={handleGuestSignIn}
-              className="w-full inline-flex justify-center py-2 px-4 border border-gray-600 rounded-md shadow-sm bg-gray-700 text-sm font-medium text-gray-300 hover:bg-gray-600 transition-colors"
+              disabled={isLoading}
+              className="w-full flex justify-center py-2 px-4 border border-gray-700 rounded-md shadow-sm bg-gray-700 text-sm font-medium text-gray-200 hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50 transition-colors"
             >
-              Continue as guest
+              <FiUser className="h-5 w-5 mr-2" /> Continue as guest
             </button>
           </div>
         </div>
       </div>
     </div>
+  );
+}
+
+// Main component with suspense boundary
+export default function AuthPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-gray-900">
+        <div className="text-white">Loading...</div>
+      </div>
+    }>
+      <AuthForm />
+    </Suspense>
   );
 } 

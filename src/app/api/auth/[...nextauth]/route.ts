@@ -9,7 +9,7 @@ import bcrypt from "bcrypt";
 
 // Required for static generation with dynamic routes
 export function generateStaticParams() {
-  return [{ nextauth: ['signin', 'signout', 'callback', 'session'] }];
+  return [{ nextauth: ['signin', 'signout', 'callback', 'session', 'error'] }];
 }
 
 export const authOptions = {
@@ -52,6 +52,10 @@ export const authOptions = {
   debug: process.env.NODE_ENV === "development",
   session: {
     strategy: "jwt",
+  },
+  pages: {
+    signIn: '/auth',
+    error: '/auth',  // Redirect to the auth page instead of /api/auth/error
   },
   secret: process.env.NEXTAUTH_SECRET,
   callbacks: {

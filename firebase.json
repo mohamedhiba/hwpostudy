@@ -10,6 +10,18 @@
     "trailingSlash": false,
     "rewrites": [
       {
+        "source": "/api/auth/error",
+        "destination": "/auth"
+      },
+      {
+        "source": "/api/auth/signin",
+        "destination": "/auth"
+      },
+      {
+        "source": "/api/auth/signout",
+        "destination": "/auth"
+      },
+      {
         "source": "/api/auth/**",
         "destination": "/api/auth/[...nextauth].html"
       },
