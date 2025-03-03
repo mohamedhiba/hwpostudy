@@ -33,6 +33,18 @@ function AuthForm() {
         case 'OAuthAccountNotLinked':
           setError('Email already used with a different provider');
           break;
+        case 'Configuration':
+          setError('There is a problem with the server configuration');
+          break;
+        case 'AccessDenied':
+          setError('Access denied');
+          break;
+        case 'Verification':
+          setError('The verification process failed');
+          break;
+        case 'default':
+          setError('An error occurred during authentication');
+          break;
         default:
           setError('An error occurred during authentication');
       }
@@ -83,11 +95,12 @@ function AuthForm() {
     
     try {
       if (authType === 'login') {
-        // Handle login
+        // Handle login - use callbackUrl to set redirect
         const result = await signIn('credentials', {
           redirect: false,
           email,
           password,
+          callbackUrl: '/' // Ensure this is properly handled
         });
         
         if (result?.error) {
@@ -96,7 +109,12 @@ function AuthForm() {
           return;
         }
         
-        router.push('/');
+        if (result?.url) {
+          // Use router to navigate to successful login URL
+          router.push('/');
+        } else {
+          router.push('/');
+        }
       } else {
         // Handle registration
         if (!name || !email || !password) {
@@ -118,11 +136,12 @@ function AuthForm() {
           return;
         }
         
-        // Auto login after successful registration
+        // Auto login after successful registration with explicit redirect to home
         const signInResult = await signIn('credentials', {
           redirect: false,
           email,
           password,
+          callbackUrl: '/'
         });
         
         if (signInResult?.error) {
@@ -134,7 +153,7 @@ function AuthForm() {
         router.push('/');
       }
     } catch (err) {
-      setError('An unexpected error occurred');
+      setError('An unexpected error occurred. Please try guest mode.');
       console.error(err);
     } finally {
       setIsLoading(false);
@@ -303,3 +322,4 @@ export default function AuthPage() {
     </Suspense>
   );
 } 
+ 

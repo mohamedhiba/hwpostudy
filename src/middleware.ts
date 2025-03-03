@@ -7,12 +7,33 @@ export function middleware(request: NextRequest) {
 
   // Check if the request is for an API route
   if (pathname.startsWith('/api/')) {
-    // Don't intercept authentication routes
-    if (pathname.startsWith('/api/auth/') || pathname.includes('auth')) {
+    // Handle authentication routes specially
+    if (pathname.startsWith('/api/auth/')) {
+      // If it's an error path, redirect to the auth page with error param
+      if (pathname.includes('/error')) {
+        // Extract error code if present in the URL
+        const url = new URL(request.url);
+        const errorCode = url.searchParams.get('error') || 'default';
+        const redirectUrl = new URL('/auth', request.url);
+        redirectUrl.searchParams.set('error', errorCode);
+        return NextResponse.redirect(redirectUrl);
+      }
+      
+      // Let session API calls continue but handle other auth paths
+      if (pathname === '/api/auth/session') {
+        return NextResponse.next();
+      }
+      
+      // For signin/signout in static exports, redirect to the auth page
+      if (pathname.includes('/signin') || pathname.includes('/signout') || pathname.includes('/callback')) {
+        return NextResponse.redirect(new URL('/auth', request.url));
+      }
+      
+      // For other auth API calls, let them pass through
       return NextResponse.next();
     }
 
-    // Check for guest mode flag (could be in session cookie or header)
+    // Check for guest mode flag
     const isGuestCookie = request.cookies.get('isGuest')?.value;
     const isGuestHeader = request.headers.get('x-guest-mode');
     const isGuest = isGuestCookie === 'true' || isGuestHeader === 'true';
@@ -48,7 +69,10 @@ export function middleware(request: NextRequest) {
   return NextResponse.next();
 }
 
-// Only run middleware on API routes
+// Run middleware on API routes and auth routes
 export const config = {
-  matcher: '/api/:path*',
+  matcher: [
+    '/api/:path*',
+    '/api/auth/:path*'
+  ],
 }; 
