@@ -9,11 +9,11 @@ export async function GET(
 ) {
   try {
     const auth = await verifyAuth();
-    if (!auth.authenticated) {
+    if (!auth.authenticated || !auth.userId) {
       return auth.response || NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const sessionId = params.sessionId;
+    const { sessionId } = params;
     
     const sharedSession = await prisma.sharedSession.findUnique({
       where: { id: sessionId },
@@ -62,12 +62,11 @@ export async function PATCH(
   { params }: { params: { sessionId: string } }
 ) {
   try {
-    // Verify authentication using our helper
     const auth = await verifyAuth();
-    if (!auth.authenticated) {
-      return auth.response;
+    if (!auth.authenticated || !auth.userId) {
+      return auth.response || NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-    
+
     const { sessionId } = params;
     const { action, timerMode, duration } = await request.json();
     
@@ -256,11 +255,11 @@ export async function PUT(
 ) {
   try {
     const auth = await verifyAuth();
-    if (!auth.authenticated) {
+    if (!auth.authenticated || !auth.userId) {
       return auth.response || NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const sessionId = params.sessionId;
+    const { sessionId } = params;
     const { studyTime } = await request.json();
 
     const sharedSession = await prisma.sharedSession.findUnique({
